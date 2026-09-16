@@ -13,3 +13,10 @@
 - [ ] Adım 4: Mikrofondan Ham Ses Yakalama Modülü (`tsonic-recv`)
 - [ ] Adım 5: FFTW3 ile Anlık Frekans Analizi ve Bit Çözümleme
 - [ ] Adım 6: Dosyayı Yeniden Oluşturma ve Testler
+
+
+
+> ⚠️ **NOT (Geçici Test Aşaması):**  
+> Şu an `generator.c` dosyası, test amaçlı olarak **440 Hz (La notası)** sesi üretmektedir.  
+> Bu ses sadece mikrofondan kayıt alıp FFT analizini test edebilmek için geçicidir.  
+> Nihai sürümde bu ses, verici tarafta **0 biti = 18.000 Hz**, **1 biti = 19.000 Hz** olacak şekilde modüle edilecektir.
