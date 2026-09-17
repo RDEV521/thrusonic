@@ -1,0 +1,14 @@
+# Geçici test dosyaları
+*.raw
+*.wav
+*.mp3
+
+# Derlenmiş binary dosyalar
+tsonic-rec
+tsonic-fft
+generator
+encoder
+test.txt
+tsonic-send
+tsonic-sound
+tsonic-recv
