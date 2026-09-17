@@ -8,15 +8,13 @@
 
 ## 🗺️ Geliştirme Yol Haritası (Roadmap)
 - [x] Adım 1: Proje Temeli, Git ve GitHub Kurulumu
-- [ ] Adım 2: Dosyayı İkili Koda (Binary) Çeviren Modül (`tsonic-send`)
-- [ ] Adım 3: ALSA ile Frekans Modülasyonlu Ses Üretimi
-- [ ] Adım 4: Mikrofondan Ham Ses Yakalama Modülü (`tsonic-recv`)
+- [x] Adım 2: Dosyayı İkili Koda (Binary) Çeviren Modül (`tsonic-send`)
+- [x] Adım 3: ALSA ile Frekans Modülasyonlu Ses Üretimi
+- [x] Adım 4: Mikrofondan Ham Ses Yakalama Modülü (`tsonic-recv`)
 - [ ] Adım 5: FFTW3 ile Anlık Frekans Analizi ve Bit Çözümleme
 - [ ] Adım 6: Dosyayı Yeniden Oluşturma ve Testler
 
 
 
 > ⚠️ **NOT (Geçici Test Aşaması):**  
-> Şu an `generator.c` dosyası, test amaçlı olarak **440 Hz (La notası)** sesi üretmektedir.  
-> Bu ses sadece mikrofondan kayıt alıp FFT analizini test edebilmek için geçicidir.  
-> Nihai sürümde bu ses, verici tarafta **0 biti = 18.000 Hz**, **1 biti = 19.000 Hz** olacak şekilde modüle edilecektir.
+> Senkronizasyon sorunu devam ediyor.
