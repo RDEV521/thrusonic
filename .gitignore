@@ -11,3 +11,4 @@ encoder
 test.txt
 tsonic-send
 tsonic-sound
+tsonic-recv
