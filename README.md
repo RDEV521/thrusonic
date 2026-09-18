@@ -11,10 +11,11 @@
 - [x] Adım 2: Dosyayı İkili Koda (Binary) Çeviren Modül (`tsonic-send`)
 - [x] Adım 3: ALSA ile Frekans Modülasyonlu Ses Üretimi
 - [x] Adım 4: Mikrofondan Ham Ses Yakalama Modülü (`tsonic-recv`)
-- [ ] Adım 5: FFTW3 ile Anlık Frekans Analizi ve Bit Çözümleme
-- [ ] Adım 6: Dosyayı Yeniden Oluşturma ve Testler
+- [x] Adım 5: FFTW3 ile Anlık Frekans Analizi ve Bit Çözümleme
+- [x] Adım 6: Dosyayı Yeniden Oluşturma ve Testler (Temel çalışıyor, hata düzeltme eklenecek)
 
 
 
 > ⚠️ **NOT (Geçici Test Aşaması):**  
 > Senkronizasyon sorunu devam ediyor.
+

@@ -4,9 +4,9 @@
 #include <alsa/asoundlib.h>
 
 #define SAMPLE_RATE 44100
-#define BIT_DURATION 0.01 // Her bir bit 10ms sürecek (100 bit/saniye)
-#define FREQ_0 18000      // 0 biti için frekans
-#define FREQ_1 19000      // 1 biti için frekans
+#define BIT_DURATION 0.02 // Her bir bit 10ms sürecek (100 bit/saniye)
+#define FREQ_0 8000       // 0 biti için frekans
+#define FREQ_1 10000      // 1 biti için frekans (laptop zor duyduğu için suanlık düşürüldü!)
 
 // ALSA için global değişkenler
 snd_pcm_t *handle;
@@ -15,7 +15,7 @@ snd_pcm_uframes_t frames;
 int dir;
 short *buffer;
 
-// Belirli bir frekanstaa ve sürede ses üreten fonksiyon
+// Belirli bir frekansta ve sürede ses üreten fonksiyon
 void play_tone(double frequency, double duration) {
     int total_samples = (int)(SAMPLE_RATE * duration);
     int loops = total_samples / frames;
@@ -29,7 +29,6 @@ void play_tone(double frequency, double duration) {
         snd_pcm_writei(handle, buffer, frames);
     }
 
-    // Kalan örnekleri çal
     if (remainder > 0) {
         for (int j = 0; j < remainder; j++) {
             double t = (double)(loops * frames + j) / SAMPLE_RATE;
@@ -57,7 +56,7 @@ int main(int argc, char *argv[]) {
     snd_pcm_hw_params_set_access(handle, params, SND_PCM_ACCESS_RW_INTERLEAVED);
     snd_pcm_hw_params_set_format(handle, params, SND_PCM_FORMAT_S16_LE);
     snd_pcm_hw_params_set_channels(handle, params, 1);
-    
+
     unsigned int val = SAMPLE_RATE;
     snd_pcm_hw_params_set_rate_near(handle, params, &val, &dir);
     snd_pcm_hw_params(handle, params);
@@ -72,9 +71,23 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
+    // 3. PREAMBLE GÖNDER (Senkronizasyon için)
+    // 16 bit alternatif 10101010... deseni
+    printf("[Preamble] Senkronizasyon sinyali gönderiliyor...\n");
+    for (int i = 0; i < 16; i++) {
+        int bit = (i % 2 == 0) ? 1 : 0;
+        play_tone(bit ? FREQ_1 : FREQ_0, BIT_DURATION);
+    }
+
+    // Sync byte: 0xAA (10101010)
+    for (int i = 7; i >= 0; i--) {
+        int bit = (0xAA >> i) & 1;
+        play_tone(bit ? FREQ_1 : FREQ_0, BIT_DURATION);
+    }
+
     printf("[ThruSonic Send] Dosya FSK modülasyonu ile gönderiliyor...\n");
 
-    // 3. Dosyayı byte byte oku ve her byte'ı bitlere ayır
+    // 4. Dosyayı byte byte oku ve her byte'ı bitlere ayır
     int ch;
     while ((ch = fgetc(file)) != EOF) {
         for (int i = 7; i >= 0; i--) {
@@ -87,9 +100,9 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    // 4. İşlem tamamlandı, kapanış sesi (isteğe bağlı)
     printf("[Gönderim Tamamlandı]\n");
 
+    // 5. Temizlik
     fclose(file);
     snd_pcm_drain(handle);
     snd_pcm_close(handle);
