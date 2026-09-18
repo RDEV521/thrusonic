@@ -4,15 +4,16 @@
 #include <fftw3.h>
 
 #define SAMPLE_RATE 44100
-#define BIT_DURATION 0.01 // Verici ile aynı: 10ms
-#define SAMPLES_PER_BIT 441 // 44100 * 0.01
-#define FREQ_0 18000
-#define FREQ_1 19000
-#define N 441 // Her seferinde 10ms'lik pencere analiz edeceğiz
+#define BIT_DURATION 0.01
+#define FREQ_0 8000  //düşürüldü şuanlık
+#define FREQ_1 10000
+#define N 882
+#define SYNC_BYTE 0xAA
+#define MAG_THRESHOLD 1.0
 
 int main(int argc, char *argv[]) {
-    if (argc < 2) {
-        printf("Kullanım: %s <kayit_dosyasi.raw> <cikti_dosyasi>\n", argv[0]);
+    if (argc < 3) {
+        printf("Kullanım: %s <kayit.raw> <cikti.txt>\n", argv[0]);
         return 1;
     }
 
@@ -23,7 +24,7 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    // 2. Çıktıi dosyasını (orijinal dosya) oluştur
+    // 2. Çıktı dosyasını oluştur
     FILE *out_file = fopen(argv[2], "wb");
     if (out_file == NULL) {
         perror("Çıktı dosyası oluşturulamadı");
@@ -37,13 +38,22 @@ int main(int argc, char *argv[]) {
     fftw_plan plan = fftw_plan_dft_r2c_1d(N, in, out, FFTW_ESTIMATE);
 
     short *buffer = (short*) malloc(sizeof(short) * N);
-    unsigned char current_byte = 0;
+
+    // Frekans bin indeksleri
+    int bin_18k = (int)(FREQ_0 * N / SAMPLE_RATE);
+    int bin_19k = (int)(FREQ_1 * N / SAMPLE_RATE);
+
+    // Alıcı durum değişkenleri
+    int synced = 0;
+    int silent_count = 0;
     int bit_count = 0;
+    unsigned char current_byte = 0;
     int total_bits = 0;
+    int sync_buffer[8] = {0};
 
-    printf("[ThruSonic Recv] Kayıt analiz ediliyor ve dosya yeniden oluşturuluyor...\n");
+    printf("[ThruSonic Recv] Kayıt analiz ediliyor, preamble aranıyor...\n");
 
-    // 4. Dosyayı 441'erli örnekler halinde oku
+    // 4. Dosyayı 441'eerli örnekler halinde oku
     while (fread(buffer, sizeof(short), N, file) == N) {
         // Normalize et
         for (int i = 0; i < N; i++) {
@@ -53,24 +63,49 @@ int main(int argc, char *argv[]) {
         // FFT'yi çalıştır
         fftw_execute(plan);
 
-        // 18kHz ve 19kHz genliklerini bul
-        double mag_18k = 0.0, mag_19k = 0.0;
-        int bin_18k = (int)(FREQ_0 * N / SAMPLE_RATE);
-        int bin_19k = (int)(FREQ_1 * N / SAMPLE_RATE);
+        // 18kHz ve 19kHz genlikleri
+        double mag_18k = sqrt(out[bin_18k][0]*out[bin_18k][0] + out[bin_18k][1]*out[bin_18k][1]);
+        double mag_19k = sqrt(out[bin_19k][0]*out[bin_19k][0] + out[bin_19k][1]*out[bin_19k][1]);
 
-        // Genlikleri hesapla (sqrt(re^2 + im^2))
-        mag_18k = sqrt(out[bin_18k][0]*out[bin_18k][0] + out[bin_18k][1]*out[bin_18k][1]);
-        mag_19k = sqrt(out[bin_19k][0]*out[bin_19k][0] + out[bin_19k][1]*out[bin_19k][1]);
+        // Sessizlik kontrolü (sync öncesi)
+        if (!synced && mag_18k < MAG_THRESHOLD && mag_19k < MAG_THRESHOLD) {
+            continue;
+        }
 
-        // Karar ver: Hangisi daha güçlü?
+        // Sessizlik durdurma: 500ms sessizlik = veri bitti
+        if (synced && mag_18k < MAG_THRESHOLD && mag_19k < MAG_THRESHOLD) {
+            silent_count++;
+            if (silent_count > 25) break;  // 25 * 20ms = 500ms
+            continue;
+        }
+        silent_count = 0;
+
+	// Baskın frekansa göre bit belirle
         int bit = (mag_19k > mag_18k) ? 1 : 0;
 
-        // Bit'i byte'a ekle
+        // Preamble arama
+        if (!synced) {
+            for (int k = 0; k < 7; k++) sync_buffer[k] = sync_buffer[k+1];
+            sync_buffer[7] = bit;
+
+            int match = 1;
+            for (int k = 0; k < 8; k++) {
+                int expected = (SYNC_BYTE >> (7 - k)) & 1;
+                if (sync_buffer[k] != expected) { match = 0; break; }
+            }
+
+            if (match) {
+                printf("[SYNC] Preamble bulundu! Veri okunuyor...\n");
+                synced = 1;
+            }
+            continue;
+        }
+
+        // Veri okuma
         current_byte = (current_byte << 1) | bit;
         bit_count++;
         total_bits++;
 
-        // 8 bit olduysa byte'ı dosyaya yaz
         if (bit_count == 8) {
             fwrite(&current_byte, 1, 1, out_file);
             current_byte = 0;
@@ -78,9 +113,12 @@ int main(int argc, char *argv[]) {
         }
     }
 
+    if (!synced) {
+        fprintf(stderr, "[UYARI] Preamble bulunamadı!\n");
+    }
+
     printf("[Tamamlandı] Toplam %d bit işlendi, dosya oluşturuldu: %s\n", total_bits, argv[2]);
 
-    // Temizlik
     fftw_destroy_plan(plan);
     fftw_free(in);
     fftw_free(out);
