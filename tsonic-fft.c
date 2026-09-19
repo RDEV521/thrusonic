@@ -3,7 +3,7 @@
 #include <math.h>
 #include <fftw3.h>
 
-#define N 44100 // 1 saniyelik veri (44100 örnek)
+#define N 220500
 #define SAMPLE_RATE 44100
 
 int main() {

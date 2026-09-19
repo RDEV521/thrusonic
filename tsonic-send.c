@@ -79,25 +79,25 @@ int main(int argc, char *argv[]) {
         play_tone(bit ? FREQ_1 : FREQ_0, BIT_DURATION);
     }
 
-    // Sync byte: 0xAA (10101010)
+    // Sync byte: 0xD5 (11010101) - Preamble'da görünmez, benzersiz
     for (int i = 7; i >= 0; i--) {
-        int bit = (0xAA >> i) & 1;
+        int bit = (0xD5 >> i) & 1;
         play_tone(bit ? FREQ_1 : FREQ_0, BIT_DURATION);
     }
 
     printf("[ThruSonic Send] Dosya FSK modülasyonu ile gönderiliyor...\n");
 
-    // 4. Dosyayı byte byte oku ve her byte'ı bitlere ayır
+    // 4. Dosyayı byte byte oku, parity bit ekleyerek gönder
     int ch;
     while ((ch = fgetc(file)) != EOF) {
+        int parity = 0;
         for (int i = 7; i >= 0; i--) {
             int bit = (ch >> i) & 1;
-            if (bit == 0) {
-                play_tone(FREQ_0, BIT_DURATION);
-            } else {
-                play_tone(FREQ_1, BIT_DURATION);
-            }
+            if (bit) parity ^= 1;
+            play_tone(bit ? FREQ_1 : FREQ_0, BIT_DURATION);
         }
+        // Parity bitini gönder (1'lerin sayısını çift yapar)
+        play_tone(parity ? FREQ_1 : FREQ_0, BIT_DURATION);
     }
 
     printf("[Gönderim Tamamlandı]\n");

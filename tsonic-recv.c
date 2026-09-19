@@ -8,8 +8,8 @@
 #define FREQ_0 8000  //düşürüldü şuanlık
 #define FREQ_1 10000
 #define N 882
-#define SYNC_BYTE 0xAA
-#define MAG_THRESHOLD 1.0
+#define SYNC_BYTE 0xD5
+#define MAG_THRESHOLD 3.0
 
 int main(int argc, char *argv[]) {
     if (argc < 3) {
@@ -72,13 +72,13 @@ int main(int argc, char *argv[]) {
             continue;
         }
 
-        // Sessizlik durdurma: 500ms sessizlik = veri bitti
-        if (synced && mag_18k < MAG_THRESHOLD && mag_19k < MAG_THRESHOLD) {
+        // Veri bitti mi? Uzun sessizlik varsa dur
+        if (mag_18k < MAG_THRESHOLD && mag_19k < MAG_THRESHOLD) {
             silent_count++;
-            if (silent_count > 25) break;  // 25 * 20ms = 500ms
-            continue;
+            if (silent_count > 25) break;
+        } else {
+            silent_count = 0;
         }
-        silent_count = 0;
 
 	// Baskın frekansa göre bit belirle
         int bit = (mag_19k > mag_18k) ? 1 : 0;
@@ -101,13 +101,28 @@ int main(int argc, char *argv[]) {
             continue;
         }
 
-        // Veri okuma
+        // Veri okuma (8 data + 1 paritty = 9 bit)
         current_byte = (current_byte << 1) | bit;
         bit_count++;
         total_bits++;
 
-        if (bit_count == 8) {
-            fwrite(&current_byte, 1, 1, out_file);
+        if (bit_count == 9) {
+            // Son bit parity, kalan 8 bit data
+            int data_byte = (current_byte >> 1) & 0xFF;
+            int received_parity = current_byte & 1;
+
+            // Parity kontrolü
+            int calc_parity = 0;
+            for (int i = 0; i < 8; i++) {
+                if ((data_byte >> i) & 1) calc_parity ^= 1;
+            }
+
+            if (calc_parity == received_parity) {
+                fwrite(&data_byte, 1, 1, out_file);
+            } else {
+                fprintf(stderr, "[HATA] Parity hatası! Byte atlandı.\n");
+            }
+
             current_byte = 0;
             bit_count = 0;
         }
